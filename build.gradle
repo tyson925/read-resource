@@ -1,0 +1,168 @@
+group 'com.blackswan'
+version '1.0-SNAPSHOT'
+
+
+//maven repositories
+buildscript {
+    repositories {
+        maven {
+            //Black Swan own maven repository -- according to depend on own project and publish
+            url "http://nexus22.bs.lan/repository/maven-releases/"
+            credentials {
+                username "${bsRepoUser}"
+                password "${bsRepoPass}"
+            }
+        }
+
+        maven {
+            url "http://nexus22.bs.lan/repository/maven-snapshots/"
+            credentials {
+                username "${bsRepoUser}"
+                password "${bsRepoPass}"
+            }
+        }
+
+        jcenter()
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1' //shadow some dependencies with different versions like jackson and build a weak jar (drop unnessary dependencies)
+        classpath "com.netflix.nebula:gradle-resolution-rules-plugin:5.0.0" //according to select only one logging
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: 'idea'
+apply plugin: 'application'
+apply plugin: 'nebula.resolution-rules'
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'maven-publish'
+
+
+repositories {
+    maven {
+        url "http://nexus22.bs.lan/repository/maven-releases/"
+        credentials {
+            username "${bsRepoUser}"
+            password "${bsRepoPass}"
+        }
+    }
+
+    maven {
+        url "http://nexus22.bs.lan/repository/maven-snapshots/"
+        credentials {
+            username "${bsRepoUser}"
+            password "${bsRepoPass}"
+        }
+    }
+
+    jcenter()
+    mavenCentral()
+    maven {
+        url "https://plugins.gradle.org/m2/"
+    }
+}
+
+//the entry point of the jar
+mainClassName = "com.balckswan.exampleToAdam.Main"
+//mainClassName = "JobRunner"
+
+shadowJar {
+    zip64 true
+
+    mergeServiceFiles()
+    
+    exclude 'META-INF/services/com.fasterxml.*'
+    dependencies {
+        include(dependency('com.fasterxml.jackson.*:.*:.*'))
+        include(dependency('com.amazonaws.*:.*:.*'))
+        include(dependency('org.apache:.*:.*'))
+        include(dependency("org.apache.httpcomponents:.*:.*"))
+        include(dependency("com.google.code.gson:.*:.*"))
+        include(dependency("joda-time:.*:.*"))
+        include(dependency("log4j:.*:.*"))
+        include(dependency("org.jsoup:.*:.*"))
+        include(dependency("org.jodd:.*:.*"))
+        include(dependency("stax:.*:.*"))
+        include(dependency("org.codehaus.woodstox:.*:.*"))
+        include(dependency("commons-.*:.*:.*"))
+        include(dependency("ch.qos.logback:.*:.*"))
+        include(dependency("org.apache.hadoop.*:.*:.*"))
+        include(dependency("org.jetbrains.*:.*:.*"))
+        include(dependency("org.scala-lang.*:.*:.*"))
+        include(dependency("com.atlascopco.*:.*:"))
+        include(dependency("org.apache.lucene.*:.*:"))
+        include(dependency("com.blackswan:.*:.*"))
+    }
+    relocate("com.fasterxml", "shaded.com.fasterxml")
+    from './maef.properties'
+}
+
+dependencies {
+    nebulaResolutionRules {
+        optional = ['slf4j-bridge']
+    }
+
+    compile "org.scala-lang:scala-library:$scala_version.8"
+    compile "org.apache.spark:spark-core_$scala_version:$spark_version"
+    compile "org.apache.spark:spark-sql_$scala_version:$spark_version"
+    compile "org.apache.spark:spark-mllib_$scala_version:$spark_version"
+
+    compile "com.blackswan:nlp-magicbox-scala:$nlp_magicbox_version"
+
+    compile "org.apache.lucene:lucene-core:7.3.0"
+    compile "org.apache.lucene:lucene-analyzers-common:7.3.0"
+
+    compile "com.atlascopco:hunspell-bridj:1.0.4"
+
+    compile "com.fasterxml.jackson.module:jackson-module-scala_$scala_version:$jackson_version"
+    compile "com.fasterxml.jackson.core:jackson-core:$jackson_version"
+    compile "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
+    compile "com.fasterxml.jackson.core:jackson-annotations:$jackson_version"
+    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:$jackson_version"
+    compile "com.holdenkarau:spark-testing-base_${scala_version}:${spark_version}_0.10.0"
+    compile "com.holdenkarau:spark-testing-base_${scala_version}:${spark_version}_0.10.0"
+
+    compile "com.blackswan.scala:insights-spark-curation:$insights_spark_curation_version"
+
+
+    compile group: 'org.jsoup', name: 'jsoup', version: '1.11.3'
+
+    compile "com.amazonaws:aws-java-sdk-s3:$aws_client_version"
+    compile "com.amazonaws:aws-java-sdk-emr:$aws_client_version"
+
+    compile 'log4j:log4j:1.2.17'
+
+    testCompile "org.scalatest:scalatest_$scala_version:3.0.0"
+    testCompile "junit:junit:4.12"
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.1'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            if(project.version.endsWith('-SNAPSHOT')) {
+                url "http://nexus22.bs.lan/repository/maven-snapshots/"
+            } else {
+                url "http://nexus22.bs.lan/repository/maven-releases/"
+            }
+            credentials {
+                username "${bsRepoUser}"
+                password "${bsRepoPass}"
+            }
+        }
+    }
+}
+
